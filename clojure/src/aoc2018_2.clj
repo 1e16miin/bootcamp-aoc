@@ -106,6 +106,7 @@
   "2를 가지고 있는지 확인"
   (partial contain-number 2))
 
+;; juxt를 이용해서 리팩토링 해보기
 (defn get-contains-vector
   "freq-set에서 2, 3을 가지고 있는지 확인후 벡터로 반환
    input: #{2 1}
@@ -125,9 +126,22 @@
   (reduce
    (fn [dup-counter freq-set]
      (let [contain-vector (get-contains-vector freq-set)]
-       (mapv + dup-counter contain-vector)))
+       (map + dup-counter contain-vector))) ;; mapv (벡터의 성질이 필요할 때(랜덤액세스), eager한 동작을 해야할 때)) vs map
    [0 0]
    (map get-freq-set strings)))
+
+(defn get-sum-of-contain-vector
+  [strings]
+  (->> strings
+       (map get-freq-set)
+       (reduce (fn [dup-counter freq-set]
+                 (let [contain-vector (get-contains-vector freq-set)]
+                   (map + dup-counter contain-vector)))
+               [0 0])))
+;; (reduce f [0 0] (map g coll))
+;; (->> coll
+;;      (map g)
+;;      (reduce f [0 0]))
 
 ;; (comment (mapv + [0 0] [1 1]))
 ;; loop-recur -> reduce -> map/filter/reduce (threading macro)
@@ -165,9 +179,9 @@
     [a b])) ;; good
 
 
-(defn same?
-  "같은 값인지 판단
-   input: a a
+(defn same? ;; 네이밍이 부실
+  "같은 값인지 판단 ;; 설명 부실
+   input: [a a]
    output: true"
   [[a b]]
   (= a b))
@@ -177,11 +191,10 @@
    input: aabfdc abbfcc
    output: abfc"
   [str1 str2]
-  (->>
-   (apply map vector [str1 str2])
-   (filter same?)
-   (map first) ;; [a a b c c]
-   str/join))
+  (->> (map vector str1 str2) ;; [[a a]][[b b]]
+       (filter same?)
+       (map first) ;; [a a b c c]
+       str/join))
 
 
 (defn diff-length-one?
@@ -189,8 +202,7 @@
    input: abcde abcd
    ouput: true"
   [origin common-letter]
-  (= (+ 1 (count common-letter))
-     (count origin)))
+  (= 1 (- (count origin) (count common-letter)))) ;; 스펙/문제 말 그대로 옮겨야한다.
 
 ;; predicate => Boolean 리턴 함수
 ;; 함수명 뒤에 ?를 붙이는게 컨벤션
@@ -209,8 +221,9 @@
   (->> strings ;; ["" "" ""]
        get-string-pairs ;; [["ababa" "abbab"] ["ababa" "abbab"]]
        (map get-valid-common-letter) ;; [nil nil nil "adbabd" nil nil nil ....]"
-       (filter #(not (nil? %)))
-       first))
+       (filter #(some? %))) ;; some? / identity
+       ;; map + filter를 keep으로 리팩토링(+ when은 단짝 친구)
+       first)
 
 ;; docstring에 input/output 명세
 ;; predicate 함수 만들어보기

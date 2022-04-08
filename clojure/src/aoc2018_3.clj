@@ -38,30 +38,34 @@
   [string]
   (let [result (re-seq (re-pattern #"\d+") string)]
     (mapv read-string result)))
-
+;; ->는 영어로 to로 읽습니다.
+;; a->b = a to b
 (defn get-point-and-range-from-numbers
   "시작점과 범위를 구하는 함수
    input: '(1 1 3 41 4)
    output: [1 3 41 4]"
-  [[id x y x-range y-range]]
+  "{:x 1 :y 3 :w 41 :h 4}" ;; 맵을 리턴하는 함수로 바꿔보기 ;; rect
+  [[_id x y x-range y-range]]
   (let [point [x y]
-        range [x-range y-range]]
+        range [x-range y-range]] ;; range 말고 다른 걸루!!
     [point range]))
 
-(defn get-coord-list
+(defn get-coord-list ;; 맵을 받는 함수 => destructuring 이용
   "시작점으로 부터 범위내의 모든 좌표를 구하는 함수
    input: [2 2] [1 1]
    output: ([2 2] [2 3] [3 2] [3 3])"
   [[[x y] [width height]]]
-  (for [dx (range width)
+  ;; map destructing https://clojure.org/guides/destructuring#_associative_destructuring
+  (for [dx (range width) ;;(m :x)
         dy (range height)]
     [(+ x dx) (+ y dy)]))
+
 
 (comment (->> "day3.sample.txt"
               get-strings-from-input
               (map get-numbers-from-string)
               (map get-point-and-range-from-numbers)
-              (map get-coord-list)
+              (map get-coord-list) ;; hash-map
               (apply concat)
               frequencies
               (filter #(>= (val %) 2))
