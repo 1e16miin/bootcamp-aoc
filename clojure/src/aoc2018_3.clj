@@ -36,7 +36,7 @@
    input: #1 @ 1,3: 41x4
    output: (1 1 3 41 4)"
   [string]
-  (let [result (re-seq (re-pattern #"\d+") string)]
+  (let [result (re-seq (re-pattern #"\d+") string)];;re-matches
     (mapv read-string result)))
 ;; ->는 영어로 to로 읽습니다.
 ;; a->b = a to b
