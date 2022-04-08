@@ -40,18 +40,22 @@
     (mapv read-string result)))
 
 (defn get-point-and-range-from-numbers
+  "시작점과 범위를 구하는 함수
+   input: '(1 1 3 41 4)
+   output: [1 3 41 4]"
   [[id x y x-range y-range]]
   (let [point [x y]
         range [x-range y-range]]
     [point range]))
 
 (defn get-coord-list
+  "시작점으로 부터 범위내의 모든 좌표를 구하는 함수
+   input: [2 2] [1 1]
+   output: ([2 2] [2 3] [3 2] [3 3])"
   [[[x y] [width height]]]
   (for [dx (range width)
         dy (range height)]
     [(+ x dx) (+ y dy)]))
-
-
 
 (comment (->> "day3.sample.txt"
               get-strings-from-input
@@ -66,3 +70,13 @@
 ;; 입력대로 모든 격자를 채우고 나면, 정확히 한 ID에 해당하는 영역이 다른 어떤 영역과도 겹치지 않음
 ;; 위의 예시에서는 ID 3 이 ID 1, 2와 겹치지 않음. 3을 출력.
 ;; 겹치지 않는 영역을 가진 ID를 출력하시오. (문제에서 답이 하나만 나옴을 보장함)
+
+(comment (->> "day3.sample.txt"
+              get-strings-from-input
+              (map get-numbers-from-string)
+              (map get-point-and-range-from-numbers)
+              (map get-coord-list)
+              (apply concat)
+              frequencies
+              (filter #(>= (val %) 2))
+              count))
