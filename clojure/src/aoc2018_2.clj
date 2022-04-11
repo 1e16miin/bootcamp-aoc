@@ -107,28 +107,36 @@
   (partial contain-number 2))
 
 ;; juxt를 이용해서 리팩토링 해보기
+;; (defn get-contains-vector
+;;   "freq-set에서 2, 3을 가지고 있는지 확인후 벡터로 반환
+;;    input: #{2 1}
+;;    output: [1 0]"
+;;   [freq-set]
+;;   (let [dup-twice (contain-2 freq-set)
+;;         dup-thirce (contain-3 freq-set)]
+;;     [dup-twice dup-thirce]))
+
 (defn get-contains-vector
   "freq-set에서 2, 3을 가지고 있는지 확인후 벡터로 반환
    input: #{2 1}
    output: [1 0]"
   [freq-set]
-  (let [dup-twice (contain-2 freq-set)
-        dup-thirce (contain-3 freq-set)]
-    [dup-twice dup-thirce]))
+  ((juxt contain-2 contain-3) freq-set))
 
+((juxt contain-2 contain-3) #{2 1})
 ;; (comment (get-contains-vector #{2 3}))
 
-(defn get-sum-of-contain-vector
-  "특정 문자가 2번, 3번 중복된 문자열들의 수를 vector로 반환
-   input: [aabbcd aacccd asdfde]
-   output: [3 1]"
-  [strings]
-  (reduce
-   (fn [dup-counter freq-set]
-     (let [contain-vector (get-contains-vector freq-set)]
-       (map + dup-counter contain-vector))) ;; mapv (벡터의 성질이 필요할 때(랜덤액세스), eager한 동작을 해야할 때)) vs map
-   [0 0]
-   (map get-freq-set strings)))
+;; (defn get-sum-of-contain-vector
+;;   "특정 문자가 2번, 3번 중복된 문자열들의 수를 vector로 반환
+;;    input: [aabbcd aacccd asdfde]
+;;    output: [3 1]"
+;;   [strings]
+;;   (reduce
+;;    (fn [dup-counter freq-set]
+;;      (let [contain-vector (get-contains-vector freq-set)]
+;;        (map + dup-counter contain-vector))) ;; mapv (벡터의 성질이 필요할 때(랜덤액세스), eager한 동작을 해야할 때)) vs map
+;;    [0 0]
+;;    (map get-freq-set strings)))
 
 (defn get-sum-of-contain-vector
   [strings]
@@ -192,9 +200,10 @@
    output: abfc"
   [str1 str2]
   (->> (map vector str1 str2) ;; [[a a]][[b b]]
-       (filter same?)
-       (map first) ;; [a a b c c]
+       (filter #(apply %))
+      ;;  (map first) ;; [a a b c c]
        str/join))
+
 
 
 (defn diff-length-one?
@@ -223,7 +232,7 @@
        (map get-valid-common-letter) ;; [nil nil nil "adbabd" nil nil nil ....]"
        (filter #(some? %))) ;; some? / identity
        ;; map + filter를 keep으로 리팩토링(+ when은 단짝 친구)
-       first)
+  first)
 
 ;; docstring에 input/output 명세
 ;; predicate 함수 만들어보기
