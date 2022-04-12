@@ -27,7 +27,7 @@
   [character]
   (let [char->int (int character)]
     (if (< char->int 97)
-      (char (+ char->int 32))
+      (char (+ char->int 32)) ;; lower-case/upper-case
       (char (- char->int 32)))))
 
 (defn react
@@ -45,7 +45,7 @@
    "
   [result
    next-char]
-  (let [cur (last result)]
+  (let [cur (peek result)] ;; peek
     (if (zero? (count result))
       (conj result next-char)
       (if (= (case-swap cur) next-char)
@@ -65,19 +65,18 @@
       (str/replace (str (case-swap unit)) "")))
 
 
-(defn get-polymer-by-unit
+(defn get-polymer-length-by-unit ;;map을 두번하는 방식
   "각 unit으로 polymer에서 삭제하고 반응시킨 결과의 길이를 list로 출력하는 함수
    input: dabAcCaCBAcCcaDA
    output: 6 8 4 6 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10"
   [polymer]
   (->> units
-       (map #(list (->> polymer
-                        (remove-by-unit %)
-                        (reduce react [])
-                        count
-                        ;; first
-                        )))
-       (map first)))
+       (map (fn [unit] ;; map 단위를 더 작게!!
+              (let [removed-polymer (remove-by-unit unit polymer)]
+                (count (reduce react [] removed-polymer)) ;;(6) (8) (6) (8)))) ;; (6) (8) (6) (8) (6) (8) (6) (8) 
+                )))))
+
+(get-polymer-length-by-unit "dabAcCaCBAcCcaDA")
 
 (comment (->> "day5.sample.txt"
               puzzle-input
@@ -88,15 +87,13 @@
                             str/join)]
            (->> polymer))
 
-
          (let [polymer (->> "day5.sample.txt"
                             puzzle-input
                             (reduce react [])
                             str/join)]
            (->> polymer
-                get-polymer-by-unit
-                (apply map min)
-                first)))
+                get-polymer-length-by-unit
+                (apply min) ))
 ;; 파트 2
 ;; 주어진 문자열에서 한 유닛 (대문자와 소문자)을 전부 없앤 후 반응시켰을 때, 가장 짧은 문자열의 길이를 리턴하시오.
 ;; 예를 들어 dabAcCaCBAcCcaDA 에서 a/A를 없애고 모두 반응시키면 dbCBcD가 되고 길이는 6인데 비해,

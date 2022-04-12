@@ -39,6 +39,9 @@
 
 
 (defn input->time-and-behavior
+  "각 라인별 인풋을 time과 행동부분으로 나누는 함수
+   input: [1518-11-03 00:29] wakes up
+   output: {:behavior wakes up :time 15181103}"
   [line]
   (let [behavior (subs line 19)]
     (->> line
@@ -51,6 +54,7 @@
          (conj {:behavior behavior}))))
 
 (defn get-guard-id
+  "행동에서 "
   [behavior]
   (->> behavior
        (re-find #"\d+")
@@ -156,8 +160,6 @@
               (map get-most-freq-by-guard)
               get-most-slept-same-time-guard
               mimute*guard))
-
-
 
 ;; 파트 2
 ;; 주어진 분(minute)에 가장 많이 잠들어 있던 가드의 ID과 그 분(minute)을 곱한 값을 구하라.
