@@ -50,22 +50,114 @@
          (hash-map :time)
          (conj {:behavior behavior}))))
 
+(defn get-guard-id
+  [behavior]
+  (->> behavior
+       (re-find #"\d+")
+       read-string))
+
 
 (defn get-sleep-time-by-guard
-  [result {:keys [time behavior]}]
-  (let [id (result :last-guard-id)
-        mm (subs (str time 10))]
-    (cond (= behavior "falls asleep") (conj result {:id id :start time})
-          (= behavior "wakes up") (conj result {:end time})
-          :else (update result :last-guard-id (re-find #"\d+" behavior)))))
+  [time-and-behavior]
+  (reduce
+   (fn [result {:keys [time behavior]}]
+     (let [id (:id (peek result))
+           mm (mod time 100)]
+       (if (str/starts-with? behavior "Guard")
+         (conj result {:id (get-guard-id behavior)})
+         (cond
+           (= behavior "falls asleep") (conj result {:id id :start mm})
+           (= behavior "wakes up") (conj result {:id id :end mm})))))
+   [{:id 0}]
+   time-and-behavior))
+
+(defn get-slept
+  [start end]
+  (if (> end start)
+    (- end start)
+    (- (+ end 60) start)))
+
+(defn get-slept-minutes
+  [start end]
+  (if (> end start)
+    (range start end)
+    (concat (range start 60) (range 0 end))))
+
+(defn get-sleep-times
+  "가드가 잠에 빠져있는 모든 분을 구하는 함수
+   input: [{:id 1 :start 2} {:id 1 :end 4}]
+   output: {sleep-times: [2 3] :id 1 :start 2}"
+  [id-and-time-list]
+  (reduce
+   (fn [result id-and-time]
+     (let [start (result :start)
+           end (id-and-time :end)
+           sleep-times (result :sleep-times)
+           id (id-and-time :id)]
+       (if (nil? end)
+         (conj result {:start (:start id-and-time) :id id})
+         (assoc result :sleep-times (concat sleep-times (get-slept-minutes start end))))))
+   {:sleep-times [] :start 0 :id 0}
+   id-and-time-list))
 
 
+(defn freq*guard
+  "가드의 id와 그 가드가 가장 많이 잠든 횟수를 곱하는 함수
+   input: {:id 1 :sleep-times [2 3 4 3]}
+   output 2 = (1 * 2)"
+  [{:keys [id sleep-times]}]
+  (->> sleep-times
+       frequencies
+       (sort-by second)
+       last
+       first
+       (* id)))
+
+(defn get-most-freq-slept-time-by-guard
+  [{:keys [sleep-times id]}]
+  (->> sleep-times
+       frequencies
+       (sort-by second)
+       last
+       (zipmap [:mm :freq])
+       (conj {:id id})))
+
+(defn get-most-slept-same-time-guard
+  [guard-info]
+  (->> guard-info
+       (sort-by :freq)
+       last))
+
+(defn mimute*guard
+  [{:keys [mm id]}]
+  (* mm id))
 
 (comment (->> "day4.sample.txt"
               puzzle-input
               (map input->time-and-behavior)
               (sort-by :time)
-              (map get-sleep-time-by-guard)))
+              get-sleep-time-by-guard
+              (filter #(> (count %) 1))
+              (group-by :id)
+              (map second)
+              (map get-sleep-times)
+              (sort-by #(count (% :sleep-times)))
+              last
+              freq*guard)
+         (->> "day4.sample.txt"
+              puzzle-input
+              (map input->time-and-behavior)
+              (sort-by :time)
+              get-sleep-time-by-guard
+              (filter #(> (count %) 1))
+              (group-by :id)
+              (map second)
+              (map get-sleep-times)
+              (map get-most-freq-by-guard)
+              get-most-slept-same-time-guard
+              mimute*guard))
+
+
 
 ;; 파트 2
 ;; 주어진 분(minute)에 가장 많이 잠들어 있던 가드의 ID과 그 분(minute)을 곱한 값을 구하라.
