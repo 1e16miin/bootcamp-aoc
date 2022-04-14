@@ -42,16 +42,46 @@
   (->> coord-map-list
        (map #(:id %))))
 
+(defn get-overlapped-coords
+  "영역이 겹치는 좌표들을 구하는 함수
+   input: {:id 1, :coords ([1 3] [1 4] [1 5] [1 6] [2 3] [2 4] [2 5] [2 6] [3 3] [3 4] [3 5] [3 6] [4 3] [4 4] [4 5] [4 6])}
+          {:id 2, :coords ([3 1] [3 2] [3 3] [3 4] [4 1] [4 2] [4 3] [4 4] [5 1] [5 2] [5 3] [5 4] [6 1] [6 2] [6 3] [6 4])}
+          {:id 3, :coords ([5 5] [5 6] [6 5] [6 6])}
+   output: #{[4 3] [3 3] [3 4] [4 4]}"
+  [id-coord-list]
+  (->> id-coord-list
+       (map :coords)
+       (apply concat)
+       frequencies
+       (filter #(> (val %) 1))
+       (map first)
+       set))
+
+(get-overlapped-coords '({:id 1, :coords ([1 3] [1 4] [1 5] [1 6] [2 3] [2 4] [2 5] [2 6] [3 3] [3 4] [3 5] [3 6] [4 3] [4 4] [4 5] [4 6])}
+                         {:id 2, :coords ([3 1] [3 2] [3 3] [3 4] [4 1] [4 2] [4 3] [4 4] [5 1] [5 2] [5 3] [5 4] [6 1] [6 2] [6 3] [6 4])}
+                         {:id 3, :coords ([5 5] [5 6] [6 5] [6 6])}))
+
+(defn have-overlapped-coord?
+  "중복된 좌표를 가지고 있는지 확인하는 함수
+   input: #{[4 3] [3 3] [3 4] [4 4]}  {:id 3, :coords ([5 5] [5 6] [6 5] [6 6])}
+   output: false
+   "
+  [overlapped-coords {:keys [id coords]}]
+  (let [intersections (set/intersection overlapped-coords (set coords))]
+    (> (count intersections) 0)))
+
 (defn get-overlapped-ids
-  "영역이 중복되는 id들을 얻어내는 함수
+  "좌표가 중복되는 id들을 얻어내는 함수
    input: {:id 1, :coords ([1 3] [1 4] [1 5] [1 6] [2 3] [2 4] [2 5] [2 6] [3 3] [3 4] [3 5] [3 6] [4 3] [4 4] [4 5] [4 6])}
           {:id 2, :coords ([3 1] [3 2] [3 3] [3 4] [4 1] [4 2] [4 3] [4 4] [5 1] [5 2] [5 3] [5 4] [6 1] [6 2] [6 3] [6 4])}
           {:id 3, :coords ([5 5] [5 6] [6 5] [6 6])}
    output: #{1 2}"
   [id-coords-list]
-  (reduce
-   (fn [result {:keys [id coords]}])
-   {}))
+  (let [overlapped-coords (get-overlapped-coords id-coords-list)]
+    (->> id-coords-list
+         (filter #(have-overlapped-coord? overlapped-coords %))
+         (map :id)
+         set)))
 
 
 (comment
@@ -59,10 +89,7 @@
        puzzle-input
        (map input->fabric-info)
        (map get-coord-by-id)
-       (map :coords)
-       (apply concat)
-       frequencies
-       (filter #(>= (val %) 2))
+       get-overlapped-coords
        count)
 
   (let [fabric-info (->> "aoc2018/day3.sample.txt"
@@ -73,7 +100,6 @@
                         set)]
     (->> fabric-info
          (map get-coord-by-id)
-        ;;  get-overlapped-ids
-        ;;  (set/difference fabric-ids)
-        ;;  first
-         )))
+         get-overlapped-ids
+         (set/difference fabric-ids)
+         first)))
