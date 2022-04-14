@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.set :as set]
-            [clojure.spec.alpha :as spec]))
+            [clojure.spec.alpha :as s]))
 
 (defn puzzle-input
   [filename]
@@ -31,7 +31,7 @@
        (map #(str/split % #" "))))
 
 (def required-fields
-  #{"byr" "ecl" "eyr" "hcl" "hgt" "iyr" "pid"})
+  #{:byr :ecl :eyr :hcl :hgt :iyr :pid})
 
 (defn mapping-required-field
   "[field value] 형태의 list를 {field1 value1 field2 value2 ...} 형태로 변환
@@ -42,9 +42,10 @@
    (fn [result info]
      (let [field (first info)
            data (last info)]
-       (conj result {field data})))
+       (conj result {(keyword field) data})))
    {}
    infos))
+
 
 
 (defn passport->fields
@@ -56,6 +57,7 @@
        (map #(str/split % #":"))
        mapping-required-field))
 
+
 (defn part1
   [input]
   (->> input
@@ -66,25 +68,26 @@
        (filter #(set/subset? required-fields %))
        count))
 
+
 (def ecl-type #{"amb" "blu" "brn" "gry" "grn" "hzl" "oth"})
 
 (def valid-ecl?
   (partial contains? ecl-type))
 
 (def valid-byr?
-  (partial spec/int-in-range? 1920 2003))
+  (partial s/int-in-range? 1920 2003))
 
 (def valid-iyr?
-  (partial spec/int-in-range? 2010 2021))
+  (partial s/int-in-range? 2010 2021))
 
 (def valid-eyr?
-  (partial spec/int-in-range? 2020 2031))
+  (partial s/int-in-range? 2020 2031))
 
 (def valid-cm?
-  (partial spec/int-in-range? 150 194))
+  (partial s/int-in-range? 150 194))
 
 (def valid-in?
-  (partial spec/int-in-range? 59 77))
+  (partial s/int-in-range? 59 77))
 
 (defn valid-pid?
   [pid]
@@ -114,37 +117,48 @@
   [fields]
   (nil? (some nil? fields)))
 
-(nil-in-fields? [2002 "amd" "#asd123" "158cm" 2022 "0123456678"])
 
-(defn valid-passport?
+(s/def :passport/byr valid-byr?)
+(s/def :passport/ecl valid-ecl?)
+(s/def :passport/eyr valid-eyr?)
+(s/def :passport/hcl valid-hcl?)
+(s/def :passport/hgt valid-hgt?)
+(s/def :passport/iyr valid-iyr?)
+(s/def :passport/pid valid-pid?)
+
+(s/def :passport/validation
+  (s/keys :req [:passport/byr
+                :passport/ecl
+                :passport/eyr
+                :passport/hcl
+                :passport/hgt
+                :passport/iyr
+                :passport/pid]))
+
+(defn valid-all-fields?
   "passport에 필수 field가 모두 존재하는지 확인하고, 각 필드의 유효성을 검증
-   input: {hcl #341e13 ecl lzr eyr 2024 iyr 2014 pid 161cm byr 1991 cid 59 hgt 150cm}
+   input: {:hcl #341e13 :ecl lzr :eyr 2024 :iyr 2014 :pid 161cm :byr 1991 :cid 59 :hgt 150cm}
    output: false (pid가 유효하지 않음)
    "
-  [passport]
-  (let [byr (passport "byr")
-        ecl (passport "ecl")
-        eyr (passport "eyr")
-        hcl (passport "hcl")
-        hgt (passport "hgt")
-        iyr (passport "iyr")
-        pid (passport "pid")]
-    (if (nil-in-fields? [byr ecl eyr hcl hgt iyr pid])
-      (and (valid-byr? (Integer/parseInt byr))
-           (valid-ecl? ecl)
-           (valid-eyr? (Integer/parseInt eyr))
-           (valid-hcl? hcl)
-           (valid-hgt? hgt)
-           (valid-iyr? (Integer/parseInt iyr))
-           (valid-pid? pid)))))
+  [{:keys [byr ecl eyr hcl hgt iyr pid]}]
+  (if (every? some? [byr ecl eyr hcl hgt iyr pid]) ;; 모든게 nil이 아니여야한다! => every? some?
+    (s/valid? :passport/validation
+              {:passport/byr (Integer/parseInt byr)
+               :passport/ecl ecl
+               :passport/eyr (Integer/parseInt eyr)
+               :passport/hcl hcl
+               :passport/hgt hgt
+               :passport/iyr (Integer/parseInt iyr)
+               :passport/pid pid})
+    false))
+
 
 (defn part2
   [input]
   (->> input
        input->passport
        (map passport->fields)
-       (map valid-passport?)
-       (filter true?)
+       (filter valid-all-fields?)
        count))
 
 (comment (->> "aoc2020/day4.sample.txt"
