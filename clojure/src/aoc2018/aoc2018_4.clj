@@ -69,15 +69,17 @@
      (let [id (:last-guard-id result)
            mm (mod time 100)
            times (result id)
-           start (:start times)
-           end (:end times)]
-       (if (re-find #"\d+" action)
-         (assoc result :last-guard-id (re-find #"\d+" action))
+           {:keys [start end]} times
+           new-id (re-find #"\d+" action)]
+       (if new-id
+         (assoc result :last-guard-id new-id)
          (cond
            (= action "falls asleep") (assoc result id (assoc times :start (conj start mm)))
            (= action "wakes up") (assoc result id (assoc times :end (conj end mm)))))))
    {}
    time-and-action))
+
+(temp)
 
 (defn get-slept-minutes-during-one-sleep
   "1회 수면동안의 분들을 구하는 함수
@@ -170,10 +172,11 @@
            (->> sorted-input
                 get-sleep-time-by-guard
                 get-all-slept-times-by-guard
-                (sort-by #(count (% :slept-times)))
-                last
-                get-most-freq-slept-time-by-guard
-                mimute*guard))
+                ;; (sort-by #(count (% :slept-times)))
+                ;; last
+                ;; get-most-freq-slept-time-by-guard
+                ;; mimute*guard
+                ))
          (let [sorted-input (sort-by-time "aoc2018/day4.sample.txt")]
            (->> sorted-input
                 get-sleep-time-by-guard
