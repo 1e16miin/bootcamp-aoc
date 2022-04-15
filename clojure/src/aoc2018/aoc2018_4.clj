@@ -172,11 +172,10 @@
            (->> sorted-input
                 get-sleep-time-by-guard
                 get-all-slept-times-by-guard
-                ;; (sort-by #(count (% :slept-times)))
-                ;; last
-                ;; get-most-freq-slept-time-by-guard
-                ;; mimute*guard
-                ))
+                (sort-by #(count (% :slept-times)))
+                last
+                get-most-freq-slept-time-by-guard
+                mimute*guard))
          (let [sorted-input (sort-by-time "aoc2018/day4.sample.txt")]
            (->> sorted-input
                 get-sleep-time-by-guard
