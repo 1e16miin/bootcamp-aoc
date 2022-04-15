@@ -10,6 +10,10 @@
       str/split-lines))
 
 (defn combinations [k seq]
+  "seq에서 k개의 원소를 선택하는 모든 경우의 수를 반환
+   input: 2 [1 2 3]
+   output: [1 2] [2 3] [1 3]
+   "
   (cond
     (> k (count seq)) nil
     (= k (count seq)) [seq]
