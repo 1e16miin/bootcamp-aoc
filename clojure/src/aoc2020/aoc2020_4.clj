@@ -36,7 +36,7 @@
 (defn mapping-required-field
   "[field value] 형태의 list를 {field1 value1 field2 value2 ...} 형태로 변환
    input:[eyr 2023] [pid 675106386] [ecl brn] [byr 2021] [iyr 2011] [hgt 153cm] [hcl #888785]
-   output: {eyr 2023 pid 675106386 ecl brn byr 2021 iyr 2011 hgt 153cm hcl #888785}"
+   output: {:eyr 2023 :pid 675106386 :ecl brn :byr 2021 :iyr 2011 :hgt 153cm :hcl #888785}"
   [infos]
   (reduce
    (fn [result info]
