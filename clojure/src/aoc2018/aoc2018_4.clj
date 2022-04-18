@@ -74,12 +74,11 @@
        (if new-id
          (assoc result :last-guard-id new-id)
          (cond
-           (= action "falls asleep") (assoc result id (assoc times :start (conj start mm)))
+           (= action "falls asleep") (assoc result id (assoc times :start (conj start mm))) ;; => 함수로 꺼내보기
            (= action "wakes up") (assoc result id (assoc times :end (conj end mm)))))))
    {}
    time-and-action))
 
-(temp)
 
 (defn get-slept-minutes-during-one-sleep
   "1회 수면동안의 분들을 구하는 함수
@@ -118,15 +117,6 @@
    []
    (dissoc input :last-guard-id)))
 
-(defn freq-slept-minute*guard
-  "가드의 id와 그 가드가 가장 빈번하게 잔 분을 곱하는 함수
-   input: {:id 1 :slept-times [2 3 4 3]}
-   output 3 = (1 * 3)"
-  [{:keys [id slept-times]}]
-  (let [sorted-slept-times (sort-by-frequency slept-times)
-        [mm _] (last sorted-slept-times)]
-    (* mm id)))
-
 (defn sort-by-frequency
   "빈도 순으로 정렬
    input: [1 2 3 4 2]
@@ -137,6 +127,16 @@
        frequencies
        (sort-by second)))
 
+(defn freq-slept-minute*guard
+  "가드의 id와 그 가드가 가장 빈번하게 잔 분을 곱하는 함수
+   input: {:id 1 :slept-times [2 3 4 3]}
+   output 3 = (1 * 3)"
+  [{:keys [id slept-times]}]
+  (let [sorted-slept-times (sort-by-frequency slept-times)
+        [mm _] (last sorted-slept-times)]
+    (* mm id)))
+
+
 (defn get-most-freq-slept-time-by-guard
   "가드가 가장 빈번하게 잔 분과 그 횟수와 id를 반환하는 함수
    input: {:id 1 :slept-times [2 3 4 3]}
@@ -144,9 +144,8 @@
    "
   [{:keys [id slept-times]}]
   (->> slept-times
-       frequencies
-       (sort-by second)
-       last
+       frequencies ;; map {3 2 5 7} ;; (apply min-key val ) => [5 7]
+       (apply max-key val)
        (zipmap [:mm :freq])
        (conj {:id id})))
 
@@ -157,8 +156,8 @@
    "
   [guard]
   (->> guard
-       (sort-by :freq)
-       last))
+       (apply max-key :freq)))
+
 
 (defn mimute*guard
   "분과 가드 id를 곱하는 함수
@@ -172,8 +171,7 @@
            (->> sorted-input
                 get-sleep-time-by-guard
                 get-all-slept-times-by-guard
-                (sort-by #(count (% :slept-times)))
-                last
+                (apply max-key #(count (% :slept-times)))
                 get-most-freq-slept-time-by-guard
                 mimute*guard))
          (let [sorted-input (sort-by-time "aoc2018/day4.sample.txt")]
