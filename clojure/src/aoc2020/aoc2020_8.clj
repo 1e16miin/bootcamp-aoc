@@ -43,18 +43,26 @@
 
 ;;iterate drop-while
 (defn calculate
-  ""
   [instructions {:keys [acc visited cur-idx]}]
+  ;; instructions
   (let [{:keys [arg moves]} (get instructions cur-idx)]
-    (if (visited cur-idx)
-      {:acc (+ arg acc)
-       :visited (visited cur-idx)
-       :cur-idx (+ cur-idx moves)
-       :dup-visited true}
-      {:acc (+ arg acc)
-       :visited (conj visited cur-idx)
-       :cur-idx (+ cur-idx moves)
-       :dup-visited false})))
+    (if (nil? arg)
+      {:acc acc
+       :visited visited
+       :cur-idx cur-idx
+       :dup-visited false
+       :fin true}
+      (if (contains? visited cur-idx)
+        {:acc (+ arg acc)
+         :visited (conj visited cur-idx)
+         :cur-idx (+ cur-idx moves)
+         :dup-visited true
+         :fin false}
+        {:acc (+ arg acc)
+         :visited (conj visited cur-idx)
+         :cur-idx (+ cur-idx moves)
+         :dup-visited false
+         :fin false}))))
 
 
 ;; (reduce
@@ -89,25 +97,29 @@
          (cons changed-instruction)
          (sort-by :idx))))
 
-(defn get-result-of-before-step
-  [instructions {:keys [acc cur-idx]}]
-  (let [{:keys [arg]} (get instructions cur-idx)]
-    arg))
 
 (defn part1
   [instructions]
-  (let [init-values {:acc 0 :visited #{} :cur-idx 0 :dup-visited false}]
+  (let [init-values {:acc 0 :visited [] :cur-idx 0 :dup-visited false :fin false}]
     (->> init-values
          (iterate #(calculate instructions %))
-         (drop-while #(% :dup-visited))
-        ;;  first
-        ;;  (get-result-of-before-step instructions)
-         )))
+         (drop-while #(false? (% :dup-visited))))))
 
-;; (def init-values {:acc 0 :visited #{} :cur-idx 0})
+(defn fin?
+  [length x]
+  (and (false? (x :dup-visited))
+       (not= length (x :cur-idx))))
 
 (defn part2
-  [instructions])
+  [instructions]
+  (let [init-values {:acc 0 :visited [] :cur-idx 0 :dup-visited false :fin false}
+        length (count instructions)]
+    (->> init-values
+         (iterate #(calculate instructions %))
+         (drop-while #(fin? length %))
+         first)))
+
+
 
 (comment
   (let [parsed-instructions (->> "aoc2020/day8.sample.txt"
@@ -117,7 +129,8 @@
                                  (map #(parse-instruction %))
                                  vec)]
     (->> parsed-instructions
-         part1))
+         part1
+         first))
   (let [instructions (->> "aoc2020/day8.sample.txt"
                           puzzle-input
                           (map input->instruction)
@@ -128,6 +141,8 @@
     (->> instructions-iteration
          (map (fn [inst] (map parse-instruction inst)))
          (map vec)
-         (map #(accumulator %))
-        ;;  (drop-while #(= (% :cur-idx) length))
+         (map part2)
+         last
+         :acc
+        ;;  (filter #(= (% :cur-idx) length))
          )))
