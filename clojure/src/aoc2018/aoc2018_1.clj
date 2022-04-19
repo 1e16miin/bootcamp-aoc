@@ -11,7 +11,7 @@
 ;;     (map read-string
 ;;          (str/split (slurp input) #"\n"))))
 
-(defn get-input [filename]
+(defn puzzle-input [filename]
   (-> filename
       io/resource
       slurp
@@ -63,8 +63,8 @@
 (comment
   ;; (part1-solution (get-numbers-from-input "day1.sample.txt"))
   ;; (part2-solution1 (get-numbers-from-input "day1.sample.txt"))
-  (->> "day1.sample.txt"
-       get-numbers-from-input
+  (->> "aoc2018/day1.sample.txt"
+       puzzle-input
        (map read-string)
        part2-solution2))
 
