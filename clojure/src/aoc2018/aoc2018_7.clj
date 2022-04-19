@@ -65,14 +65,11 @@
   (let [result (drop 1 q)
         vertex (first q)
         ;; adjacency-vertices (graph vertex)
-        zero-degree-vertices (get-zero-degree-vertices indegree)
-        _ (prn zero-degree-vertices)]
+        zero-degree-vertices (get-zero-degree-vertices indegree)]
     (->> zero-degree-vertices
          (filter #(nil? (visited %)))
          (concat result)
          sort)))
-
-
 
 (defn work
   [graph {:keys [visited q route indegree]}]
@@ -86,7 +83,7 @@
     {:visited updated-visited :q updated-q :route updated-route :indegree after-remove-zero-indegree}))
 
 
-(defn topological-sort
+(defn get-order
   [indegree graph]
   (let [zero-degree-vertices (get-zero-degree-vertices indegree)
         updated-indegree (remove-zero-indegree-vertex zero-degree-vertices indegree)
@@ -108,15 +105,10 @@
                           (get-graph instructions))
                indegree (->> vertices
                              (reduce #(assoc %1 %2 0) {})
-                             (get-indegree instructions))]
-           (->> graph
-                (topological-sort indegree)
+                             (get-indegree instructions))
+               {:keys [q route]} (get-order indegree graph)]
+           (->> q
+                (concat route)
+                (apply str))))
 
-            ;; instructions
-            ;;     (get-indegree indegree)
-            ;;     (add-adjacency-vertex graph)
-                ;; get-indegree
-                ;; (into (sorted-map))
-
-                ;; topological-sort
-                )))
+(str/join '("G" "L" "M" "V" "W" "X" "Z" "D" "K" "O" "U" "C" "E" "J" "R" "H" "F" "A" "P" "I" "T" "S" "B" "Q" "N"))
