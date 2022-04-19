@@ -1,4 +1,6 @@
-(ns aoc2018_4)
+(ns aoc2018_4
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]))
 ;; 파트 1
 ;; 입력:
 
@@ -28,6 +30,42 @@
 ;; 파트 1은 “주어진 입력에 대해서, 가장 오랜시간 잠들어있었던 가드의 ID와, 그 가드가 가장 빈번하게 잠들어 있었던 분(minute)의 곱을 구하라”
 ;; 만약 20번 가드가 0시 10분~36분, 다음날 0시 5분~11분, 다다음날 0시 11분~13분 이렇게 잠들어 있었다면, “11분“이 가장 빈번하게 잠들어 있던 ‘분’. 그럼 답은 20 * 11 = 220.
 
+(defn puzzle-input
+  [filename]
+  (-> filename
+      io/resource
+      slurp
+      str/split-lines))
+
+
+(defn input->time-and-behavior
+  [line]
+  (let [behavior (subs line 19)]
+    (->> line
+         (re-seq #"\d+")
+         str/join
+         (take 12)
+         str/join
+         read-string
+         (hash-map :time)
+         (conj {:behavior behavior}))))
+
+
+(defn get-sleep-time-by-guard
+  [result {:keys [time behavior]}]
+  (let [id (result :last-guard-id)
+        mm (subs (str time 10))]
+    (cond (= behavior "falls asleep") (conj result {:id id :start time})
+          (= behavior "wakes up") (conj result {:end time})
+          :else (update result :last-guard-id (re-find #"\d+" behavior)))))
+
+
+
+(comment (->> "day4.sample.txt"
+              puzzle-input
+              (map input->time-and-behavior)
+              (sort-by :time)
+              (map get-sleep-time-by-guard)))
 
 ;; 파트 2
 ;; 주어진 분(minute)에 가장 많이 잠들어 있던 가드의 ID과 그 분(minute)을 곱한 값을 구하라.
