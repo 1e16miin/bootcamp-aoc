@@ -27,8 +27,10 @@
   [character]
   (let [char->int (int character)]
     (if (< char->int 97)
-      (char (+ char->int 32)) ;; lower-case/upper-case
-      (char (- char->int 32)))))
+      (str/lower-case character) ;; lower-case/upper-case
+      (str/upper-case character))))
+
+
 
 (defn react
   "새로운 문자가 들어왔을 때 마지막 문자와 비교하여, 서로 같은 문자지만 
@@ -48,7 +50,7 @@
   (let [cur (peek result)] ;; peek
     (if (zero? (count result))
       (conj result next-char)
-      (if (= (case-swap cur) next-char)
+      (if (= (case-swap cur) (str next-char))
         (pop result)
         (conj result next-char)))))
 
@@ -78,22 +80,18 @@
 
 (get-polymer-length-by-unit "dabAcCaCBAcCcaDA")
 
-(comment (->> "day5.sample.txt"
+(comment (->> "aoc2018/day5.sample.txt"
               puzzle-input
               (reduce react [])
               count)
-         (let [polymer (->> "dabAcCaCBAcCcaDA"
-                            (reduce react [])
-                            str/join)]
-           (->> polymer))
 
-         (let [polymer (->> "day5.sample.txt"
+         (let [polymer (->> "aoc2018/day5.sample.txt"
                             puzzle-input
                             (reduce react [])
                             str/join)]
            (->> polymer
                 get-polymer-length-by-unit
-                (apply min) ))
+                (apply min))))
 ;; 파트 2
 ;; 주어진 문자열에서 한 유닛 (대문자와 소문자)을 전부 없앤 후 반응시켰을 때, 가장 짧은 문자열의 길이를 리턴하시오.
 ;; 예를 들어 dabAcCaCBAcCcaDA 에서 a/A를 없애고 모두 반응시키면 dbCBcD가 되고 길이는 6인데 비해,

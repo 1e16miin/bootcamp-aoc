@@ -1,6 +1,7 @@
 (ns aoc2018_4
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure.zip :as z]))
 ;; 파트 1
 ;; 입력:
 
@@ -37,80 +38,128 @@
       slurp
       str/split-lines))
 
-
-(defn input->time-and-behavior
+(defn input->time-and-action
   "각 라인별 인풋을 time과 행동부분으로 나누는 함수
    input: [1518-11-03 00:29] wakes up
-   output: {:behavior wakes up :time 15181103}"
+   output: {:action wakes up :time 15181103}"
   [line]
-  (let [behavior (subs line 19)]
-    (->> line
-         (re-seq #"\d+")
-         str/join
-         (take 12)
-         str/join
-         read-string
-         (hash-map :time)
-         (conj {:behavior behavior}))))
+  (let [[_ YYYY MM DD hh mm action] (re-matches #"\[(\d+)-(\d+)-(\d+) (\d+):(\d+)\] (.+)$" line)
+        time (read-string (str/join [YYYY MM DD hh mm]))
+        ] ;; 파싱을 좀 더 깔끔하게
+    {:time time :action action}
+    ))
 
-(defn get-guard-id
-  "행동에서 "
-  [behavior]
-  (->> behavior
+
+(defn action->guard-id
+  "행동에서 가드의 id를 추출하는 함수
+   input: Guard #10 begins shift
+   output: 10
+   "
+  [action]
+  (->> action
        (re-find #"\d+")
        read-string))
 
+(re-find #"\d+" "sdf")
 
 (defn get-sleep-time-by-guard
-  [time-and-behavior]
+  "가드들의 수면 시작과 끝을 각각 seq로 얻는 함수
+   input: {:time 151811010000, :action Guard #10 begins shift}
+          {:time 151811010005, :action falls asleep}
+          {:time 151811010025, :action wakes up}
+          {:time 151811010030, :action falls asleep}
+          {:time 151811010055, :action wakes up}
+          {:time 151811012358, :action Guard #99 begins shift}
+          {:time 151811020040, :action falls asleep}
+          {:time 151811020050, :action wakes up}
+          {:time 151811030005, :action Guard #10 begins shift}
+          {:time 151811030024, :action falls asleep}
+          {:time 151811030029, :action wakes up}
+   output: {:last-guard-id 10, 10 {:start [24], :end [29]}, 99 {:start [40], :end [50]}}
+   "
+  ;; 적어놓고 설명이 힘들다 => 이런 함수 X 
+  ;;{1 {:start [] :end []}
+   ;;2 {:start ... :end ...}} ;; guard id별로 start, end 타임 모아보기
+  [time-and-action]
   (reduce
-   (fn [result {:keys [time behavior]}]
-     (let [id (:id (peek result))
-           mm (mod time 100)]
-       (if (str/starts-with? behavior "Guard")
-         (conj result {:id (get-guard-id behavior)})
+   (fn [result {:keys [time action]}]
+     (let [id (:last-guard-id result)
+           mm (mod time 100)
+           times (result id)
+           start (:start times)
+           end (:end times)]
+
+       (if (str/starts-with? action "Guard")
+         (assoc result :last-guard-id (action->guard-id action) (action->guard-id action) {:start [] :end []})
          (cond
-           (= behavior "falls asleep") (conj result {:id id :start mm})
-           (= behavior "wakes up") (conj result {:id id :end mm})))))
-   [{:id 0}]
-   time-and-behavior))
+           (= action "falls asleep") (assoc result id (assoc times :start (conj start mm)))
+           (= action "wakes up") (assoc result id (assoc times :end (conj end mm)))))))
+   {}
+   time-and-action))
 
-(defn get-slept
-  [start end]
-  (if (> end start)
-    (- end start)
-    (- (+ end 60) start)))
 
-(defn get-slept-minutes
+
+(get-sleep-time-by-guard '({:time 151803012358, :action "Guard #179 begins shift"}
+                           {:time 151803020027, :action "falls asleep"}
+                           {:time 151803020032, :action "wakes up"}
+                           {:time 151803030000, :action "Guard #2269 begins shift"}
+                           {:time 151803030023, :action "falls asleep"}
+                           {:time 151803030024, :action "wakes up"}
+                           {:time 151803032356, :action "Guard #1061 begins shift"}
+                           {:time 151803040015, :action "falls asleep"}))
+
+;; (defn get-slept
+;;   [start end]
+;;   (if (> end start)
+;;     (- end start)
+;;     (- (+ end 60) start)))
+
+(defn get-slept-minutes-during-one-sleep
+  "1회 수면동안의 분들을 구하는 함수
+   input: [58 2]
+   output: [58 59 0 1]
+   "
   [start end]
   (if (> end start)
     (range start end)
     (concat (range start 60) (range 0 end))))
 
-(defn get-sleep-times
-  "가드가 잠에 빠져있는 모든 분을 구하는 함수
-   input: [{:id 1 :start 2} {:id 1 :end 4}]
-   output: {sleep-times: [2 3] :id 1 :start 2}"
-  [id-and-time-list]
+(defn get-sleep-time
+  [start-end-pair-list]
   (reduce
-   (fn [result id-and-time]
-     (let [start (result :start)
-           end (id-and-time :end)
-           sleep-times (result :sleep-times)
-           id (id-and-time :id)]
-       (if (nil? end)
-         (conj result {:start (:start id-and-time) :id id})
-         (assoc result :sleep-times (concat sleep-times (get-slept-minutes start end))))))
-   {:sleep-times [] :start 0 :id 0}
-   id-and-time-list))
+   (fn [result [start end]]
+     (concat result (get-slept-minutes-during-one-sleep start end)))
+   []
+   start-end-pair-list))
 
+(defn get-all-slept-times-by-guard
+  "가드가 수면 중인 모든 분을 구하는 함수
+   input: {:last-guard-id 10, 10 {:start [24], :end [29]}, 99 {:start [40], :end [50]}}
+   output: {10 [] 99 []}"
+  [input]
+  (let [id-time (dissoc input :last-guard-id)
+        ids (keys id-time)]
+    (reduce
+     (fn [result id]
+       (let [times (id-time id)
+             starts (times :start)
+             ends (times :end)
+            
+             slept-times (result id)]
+         (assoc result id (get-sleep-time (map vector starts ends))))
+       )
+     {}
+     ids)))
+
+(map vector [1 2] [1 2])
+(get-all-slept-times {:last-guard-id 10, 10 {:start [24 10], :end [29 15]}, 99 {:start [40], :end [50]}})
 
 (defn freq*guard
   "가드의 id와 그 가드가 가장 많이 잠든 횟수를 곱하는 함수
    input: {:id 1 :sleep-times [2 3 4 3]}
    output 2 = (1 * 2)"
   [{:keys [id sleep-times]}]
-  (->> sleep-times
+  (->> sleep-times [ 1 2 2 3] {1 }
        frequencies
        (sort-by second)
        last
@@ -135,29 +184,30 @@
 (defn mimute*guard
   [{:keys [mm id]}]
   (* mm id))
+{id: [1 2 ]}
 
-(comment (->> "day4.sample.txt"
+;; 중간중간 데이터 => let-binding
+(comment (->> "aoc2018/day4.sample.txt"
               puzzle-input
-              (map input->time-and-behavior)
+              (map input->time-and-action)
+              (sort-by :time)
+              get-sleep-time-by-guard
+          
+              ;; (map get-all-slept-times){[ {:id :start} {:id :end} ]}
+              ;; (sort-by #(count (% :sleep-times)))
+              ;; last
+              ;; freq*guard
+              )
+         (->> "aoc2018/day4.sample.txt"
+              puzzle-input
+              (map input->time-and-action)
               (sort-by :time)
               get-sleep-time-by-guard
               (filter #(> (count %) 1))
               (group-by :id)
               (map second)
-              (map get-sleep-times)
-              (sort-by #(count (% :sleep-times)))
-              last
-              freq*guard)
-         (->> "day4.sample.txt"
-              puzzle-input
-              (map input->time-and-behavior)
-              (sort-by :time)
-              get-sleep-time-by-guard
-              (filter #(> (count %) 1))
-              (group-by :id)
-              (map second)
-              (map get-sleep-times)
-              (map get-most-freq-by-guard)
+              (map get-all-slept-times)
+              (map get-most-freq-slept-time-by-guard)
               get-most-slept-same-time-guard
               mimute*guard))
 
