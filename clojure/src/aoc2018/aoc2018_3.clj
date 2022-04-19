@@ -39,6 +39,7 @@
   [string]
   (->> string
        (re-seq #"\d+")
+       (re-matches #"#(\d+) @ (\d+),(\d+):....")
        (map read-string)
        (zipmap [:id :x :y :width :height])))
 
@@ -51,21 +52,21 @@
    output: ({:id 1 :coord [2 2]} {:id 1 :coord [2 3]} {:id 1 :coord [3 2]} {:id 1 :coord [3 3]})"
   [{:keys [id x y width height]}]
   ;; map destructing https://clojure.org/guides/destructuring#_associative_destructuring
-  (for [dx (range width)
+  (for [x' (range x (+ x width))
         dy (range height)]
-    {:id id :coord [(+ x dx) (+ y dy)]}))
+    {:id id :coord [x' y']}))
 
 
 (defn extract-coord
-  [lst]
-  (->> lst
-       (map #(:coord %))))
+  [lst] ;; 명시적인 네이밍
+  (->> lst ;; [{:id 1 :coord ([1 2] [3 4])}]
+       (map :coord))) ;; 
 
 (comment (->> "day3.sample.txt"
               puzzle-input
               (map input->fabric-info)
               (map get-coord) ;; hash-map
-              (map extract-coord)
+              (map extract-coord) (([1 2] [2 3])  ([1 2] [2 3])  ([1 2] [2 3]))
               (apply concat)
               frequencies
               (filter #(>= (val %) 2))
@@ -81,7 +82,7 @@
 (defn extract-id
   "coordinate에 binding된 id들을 추출하는 함수
    input: [841 660] [{:id 349, :coord [841 660]} {:id 355, :coord [841 660]}]
-   output: (349 355)
+   output: (349 355) (1 2 3)
    "
   [[_coord coord-map-list]]
   (->> coord-map-list
@@ -92,8 +93,9 @@
                          puzzle-input
                          (map input->fabric-info))
         fabric-ids (->> fabric-info
-                        (map #(:id %))
-                        set)]
+                        (map #(:id %)) ;; => (map :id)
+                        set)
+        overlapped-coords] ;; 겹치는 지역의 좌표들]
     (->> fabric-info
          (map get-coord)
          (apply concat)
@@ -102,5 +104,8 @@
          (map extract-id)
          (apply concat)
          set
-         (set/difference fabric-ids)
+         (set/difference fabric-ids) ;; 데이터를 준비하는 과정 -> 정답 구하는 로직
          first)))
+
+         ;; 데이터를 준비하는 과정 / 정답 구하는 로직 분리 => let-binding!!
+         ;; part1, part2에서 겹치는 부분들은 함수로 묶어보는 것
