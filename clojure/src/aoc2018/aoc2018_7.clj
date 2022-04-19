@@ -20,8 +20,8 @@
 ;;   (let [adjacency-list-of-from (graph from)]
 ;;     (assoc graph from (conj adjacency-list-of-from to))))
 
-(defn add-adjacency-vertex
-  [graph instructions]
+(defn get-graph
+  [instructions graph]
   (reduce
    (fn [result {:keys [from to]}]
      (let [adjacency-list-of-from (result from)]
@@ -29,14 +29,72 @@
    graph
    instructions))
 
+(defn get-indegree
+  [instructions graph]
+  (reduce
+   (fn [result {:keys [to]}]
+     (update result to inc))
+   graph
+   instructions))
+
+(defn get-zero-degree-vertices
+  [indegree]
+  (->> indegree
+       (filter #(zero? (val %)))
+       (map first)))
+
+(defn update-indegree
+  [graph indegree vertex]
+  (let [adjacency-vertices (graph vertex)]
+    (reduce
+     (fn [result adjacency-vertex]
+       (update result adjacency-vertex dec))
+     indegree
+     adjacency-vertices)))
+
+(defn remove-zero-indegree-vertex
+  [zero-degree-vertices indegree]
+  (reduce
+   (fn [result zero-degree-vertex]
+     (dissoc result zero-degree-vertex))
+   indegree
+   zero-degree-vertices))
+
+(defn update-q
+  [graph q visited indegree]
+  (let [result (drop 1 q)
+        vertex (first q)
+        ;; adjacency-vertices (graph vertex)
+        zero-degree-vertices (get-zero-degree-vertices indegree)
+        _ (prn zero-degree-vertices)]
+    (->> zero-degree-vertices
+         (filter #(nil? (visited %)))
+         (concat result)
+         sort)))
+
+
+
+(defn work
+  [graph {:keys [visited q route indegree]}]
+  (let [vertex (first q)
+        updated-visited (conj visited vertex)
+        updated-indegree (update-indegree graph indegree vertex)
+        zero-degree-vertices (get-zero-degree-vertices updated-indegree)
+        after-remove-zero-indegree (remove-zero-indegree-vertex zero-degree-vertices updated-indegree)
+        updated-q (update-q graph q visited updated-indegree)
+        updated-route (conj route vertex)]
+    {:visited updated-visited :q updated-q :route updated-route :indegree after-remove-zero-indegree}))
+
+
 (defn topological-sort
-  [graph]
-  (->> graph
-       (iterate #(into {} (for [[k v] % :when (seq v)] [k (mapcat % (sort v))])))
-       (take-while seq)
-       (mapcat #(for [[k v] % :when (empty? v)] k))
-      ;;  str/join
-       ))
+  [indegree graph]
+  (let [zero-degree-vertices (get-zero-degree-vertices indegree)
+        updated-indegree (remove-zero-indegree-vertex zero-degree-vertices indegree)
+        init-data {:indegree updated-indegree :visited #{} :q zero-degree-vertices :route []}]
+    (->> init-data
+         (iterate #(work graph %))
+         (take-while #(not (empty? (% :q))))
+         last)))
 
 (comment (let [instructions (->> "aoc2018/day7.sample.txt"
                                  puzzle-input
@@ -45,8 +103,20 @@
                from (map :from instructions)
                to (map :to instructions)
                vertices (set (concat from to))
-               graph (reduce #(assoc %1 %2 []) {} vertices)]
-           (->> instructions
-                (add-adjacency-vertex graph)
-                (into (sorted-map))
-                topological-sort)))
+               graph (->> vertices
+                          (reduce #(assoc %1 %2 []) {})
+                          (get-graph instructions))
+               indegree (->> vertices
+                             (reduce #(assoc %1 %2 0) {})
+                             (get-indegree instructions))]
+           (->> graph
+                (topological-sort indegree)
+
+            ;; instructions
+            ;;     (get-indegree indegree)
+            ;;     (add-adjacency-vertex graph)
+                ;; get-indegree
+                ;; (into (sorted-map))
+
+                ;; topological-sort
+                )))
