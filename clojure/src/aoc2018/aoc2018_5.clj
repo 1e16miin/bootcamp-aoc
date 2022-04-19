@@ -61,7 +61,7 @@
   "polymer에 있는 해당 unit (대소문자 모두)를 삭제하는 함수
    input: a dabAcCaCBAcCcaDA
    output: dbcCCBcCcD"
-  [unit polymer]
+  [polymer unit]
   (-> polymer
       (str/replace (str unit) "")
       (str/replace (str (case-swap unit)) "")))
@@ -73,12 +73,10 @@
    output: 6 8 4 6 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10"
   [polymer]
   (->> units
-       (map (fn [unit] ;; map 단위를 더 작게!!
-              (let [removed-polymer (remove-by-unit unit polymer)]
-                (count (reduce react [] removed-polymer)) ;;(6) (8) (6) (8)))) ;; (6) (8) (6) (8) (6) (8) (6) (8) 
-                )))))
+       (map #(remove-by-unit polymer %))
+       (map #(reduce react [] %))
+       (map count)))
 
-(get-polymer-length-by-unit "dabAcCaCBAcCcaDA")
 
 (comment (->> "aoc2018/day5.sample.txt"
               puzzle-input
