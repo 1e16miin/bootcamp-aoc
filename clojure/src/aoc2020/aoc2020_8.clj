@@ -34,115 +34,85 @@
        {:operation acc, :arg 1, :idx 1} => {:idx 1 :arg 1 :moves 1}
        {:operation jmp, :arg 4, :idx 2} => {:idx 2 :arg 0 :moves 4}
    "
-  [{:keys [idx operation arg]}]
-  (cond (= operation "acc") {:idx idx :arg arg :moves 1}
-        (= operation "nop") {:idx idx :arg 0 :moves 1}
-        (= operation "jmp") {:idx idx :arg 0 :moves arg}))
+  [{:keys [operation arg]}]
+  (case operation
+    "acc" {:arg arg :moves 1} ;; keyword
+    "nop" {:arg 0 :moves 1}
+    "jmp" {:arg 0 :moves arg})) ;; case
 
+;; defmulti / defmethod
+;; (defmulti parse-instruction
+;;   (fn [{:keys [idx operation arg]}] operation))
+;; ;; (defmulti parse-instruction :operation)
 
+;; (defmethod parse-instruction "acc"
+;;   [{:keys [idx operation arg]}]
+;;   {:idx idx :arg arg :moves 1})
 
-;;iterate drop-while
 (defn calculate
   [instructions {:keys [acc visited cur-idx]}]
-  ;; instructions
   (let [{:keys [arg moves]} (get instructions cur-idx)]
     (if (nil? arg)
       {:acc acc
        :visited visited
        :cur-idx cur-idx
-       :dup-visited false
-       :fin true}
-      (if (contains? visited cur-idx)
+       :finished? true}
+      (if (visited cur-idx)
         {:acc (+ arg acc)
          :visited (conj visited cur-idx)
          :cur-idx (+ cur-idx moves)
-         :dup-visited true
-         :fin false}
+         :finished? true}
         {:acc (+ arg acc)
          :visited (conj visited cur-idx)
          :cur-idx (+ cur-idx moves)
-         :dup-visited false
-         :fin false}))))
-
-
-;; (reduce
-;;      (fn [{:keys [acc next-idx visited]} {:keys [operation arg idx]}]
-;;        (cond (= next-idx idx) (if (visited idx)
-;;                                 (reduced {:acc acc :finish-type "visit-dup-idx"})
-;;                                 (cond
-;;                                   (= operation "acc") {:acc (+ acc arg) :next-idx (inc idx) :visited (conj visited idx)}
-;;                                   (= operation "nop") {:acc acc :next-idx (inc idx) :visited (conj visited idx)}
-;;                                   (= operation "jmp") {:acc acc :next-idx (+ idx arg) :visited (conj visited idx)}))
-;;              (>= next-idx length) (reduced {:acc acc :finish-type "loop-finished"})
-;;              :else {:acc acc :next-idx next-idx :visited visited}))
-;;      {:acc 0 :next-idx 0 :visited #{}}
-;;      (cycle instructions)))
+         :finished? false}))))
 
 (defn change-operation
   "jmp->nop or nop->jmp로 변경
-   input: jmp
-   output: nop
+   input: {:operation nop :arg -3}
+   output: {:operation jmp :arg -3}
    "
-  [{:keys [idx operation arg]}]
-  (if (= operation "jmp")
-    {:idx idx :operation "nop" :arg arg}
-    {:idx idx :operation "jmp" :arg arg}))
+  [instruction]
+  (let [convert {"jmp" "nop" "nop" "jmp"}]
+    (update instruction :operation convert)))
 
 (defn change-operation-instructions
   [instructions jmp-or-nop-instruction]
   (let [idx (jmp-or-nop-instruction :idx)
         changed-instruction (change-operation jmp-or-nop-instruction)]
-    (->> instructions
-         (filter #(not= (% :idx) idx))
-         (cons changed-instruction)
-         (sort-by :idx))))
+    (-> instructions
+        (assoc idx changed-instruction))))
 
 
-(defn part1
+(defn calculator
   [instructions]
-  (let [init-values {:acc 0 :visited [] :cur-idx 0 :dup-visited false :fin false}]
+  (let [init-values {:acc 0 :visited #{} :cur-idx 0 :finished? false}]
     (->> init-values
          (iterate #(calculate instructions %))
-         (drop-while #(false? (% :dup-visited))))))
-
-(defn fin?
-  [length x]
-  (and (false? (x :dup-visited))
-       (not= length (x :cur-idx))))
-
-(defn part2
-  [instructions]
-  (let [init-values {:acc 0 :visited [] :cur-idx 0 :dup-visited false :fin false}
-        length (count instructions)]
-    (->> init-values
-         (iterate #(calculate instructions %))
-         (drop-while #(fin? length %))
-         first)))
-
-
+         (take-while #(false? (% :finished?)))
+         last)))
 
 (comment
   (let [parsed-instructions (->> "aoc2020/day8.sample.txt"
                                  puzzle-input
                                  (map input->instruction)
                                  indexed-instructions
-                                 (map #(parse-instruction %))
-                                 vec)]
+                                 (mapv #(parse-instruction %))  ;; mapv {0 {:arg :moves}}
+                                 )]
     (->> parsed-instructions
-         part1
-         first))
+         calculator
+         :acc))
   (let [instructions (->> "aoc2020/day8.sample.txt"
                           puzzle-input
                           (map input->instruction)
-                          indexed-instructions)
+                          indexed-instructions
+                          vec)
         jmp-or-nop-instructions (filter #(not= "acc" (:operation %)) instructions)
         instructions-iteration (map #(change-operation-instructions instructions %) jmp-or-nop-instructions)
         length (count instructions)]
     (->> instructions-iteration
-         (map (fn [inst] (map parse-instruction inst)))
-         (map vec)
-         (map part2)
-         last
-         :acc
-        ;;  (filter #(= (% :cur-idx) length))
-         )))
+         (map #(mapv parse-instruction %)) ;; mapv
+         (map calculator)
+         (filter #(>= (:cur-idx %) length))
+         first
+         :acc)))
