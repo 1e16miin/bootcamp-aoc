@@ -89,8 +89,8 @@
   (let [init-values {:acc 0 :visited #{} :cur-idx 0 :finished? false}]
     (->> init-values
          (iterate #(calculate instructions %))
-         (take-while #(false? (% :finished?)))
-         last)))
+         (drop-while #(false? (% :finished?)))
+         first)))
 
 (comment
   (let [parsed-instructions (->> "aoc2020/day8.sample.txt"

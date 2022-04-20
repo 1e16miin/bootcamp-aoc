@@ -14,13 +14,12 @@
   (let [[_ from to] (re-matches #"Step (\w) must be finished before step (\w) can begin." line)]
     {:from from :to to}))
 
-
-;; (defn add-adjacency-vertex
-;;   [graph {:keys [from to]}]
-;;   (let [adjacency-list-of-from (graph from)]
-;;     (assoc graph from (conj adjacency-list-of-from to))))
-
 (defn get-graph
+  "{:from A :to C}
+   {:from A :to F} 
+
+   {A [] B [] C [] F []}
+   "
   [instructions graph]
   (reduce
    (fn [result {:keys [from to]}]
@@ -30,20 +29,21 @@
    instructions))
 
 (defn get-indegree
-  [instructions graph]
+  [instructions indegree]
   (reduce
    (fn [result {:keys [to]}]
      (update result to inc))
-   graph
+   indegree
    instructions))
 
-(defn get-zero-degree-vertices
+(defn get-zero-indegree-vertices
   [indegree]
   (->> indegree
        (filter #(zero? (val %)))
        (map first)))
 
 (defn update-indegree
+
   [graph indegree vertex]
   (let [adjacency-vertices (graph vertex)]
     (reduce
@@ -52,46 +52,50 @@
      indegree
      adjacency-vertices)))
 
-(defn remove-zero-indegree-vertex
-  [zero-degree-vertices indegree]
-  (reduce
-   (fn [result zero-degree-vertex]
-     (dissoc result zero-degree-vertex))
-   indegree
-   zero-degree-vertices))
+(defn get-pos-indegrees
+  [zero-indegree-vertices indegree]
+  (apply dissoc indegree zero-indegree-vertices))
 
-(defn update-q
-  [graph q visited indegree]
-  (let [result (drop 1 q)
-        vertex (first q)
-        ;; adjacency-vertices (graph vertex)
-        zero-degree-vertices (get-zero-degree-vertices indegree)]
-    (->> zero-degree-vertices
+(defn update-next-steps
+  ""
+
+  [graph next-steps visited zero-indegree-vertices]
+  (let [next-steps' (rest next-steps)]
+    (->> zero-indegree-vertices
          (filter #(nil? (visited %)))
-         (concat result)
+         (concat next-steps')
          sort)))
 
 (defn work
-  [graph {:keys [visited q route indegree]}]
-  (let [vertex (first q)
-        updated-visited (conj visited vertex)
-        updated-indegree (update-indegree graph indegree vertex)
-        zero-degree-vertices (get-zero-degree-vertices updated-indegree)
-        after-remove-zero-indegree (remove-zero-indegree-vertex zero-degree-vertices updated-indegree)
-        updated-q (update-q graph q visited updated-indegree)
-        updated-route (conj route vertex)]
-    {:visited updated-visited :q updated-q :route updated-route :indegree after-remove-zero-indegree}))
+  [graph {:keys [visited next-steps orders indegree] :as state}]
+  (let [step (first next-steps)
+        updated-indegree (update-indegree graph indegree step)
+        zero-degree-vertices (get-zero-indegree-vertices updated-indegree)]
+    (-> state
+        (assoc :visited (conj visited step))
+        (assoc :next-steps (update-next-steps graph next-steps visited zero-degree-vertices))
+        (assoc :orders (conj orders step))
+        (assoc :indegree (get-pos-indegrees zero-degree-vertices updated-indegree)))))
 
+(defn create-init-state
+  [indegree]
+  (let [zero-indegree-vertices (get-zero-indegree-vertices indegree)
+        pos-indegrees (get-pos-indegrees zero-indegree-vertices indegree)
+        init-state {}]
+    (-> init-state
+        (assoc :visited #{})
+        (assoc :next-steps zero-indegree-vertices)
+        (assoc :orders [])
+        (assoc :indegree pos-indegrees))))
 
-(defn get-order
+(defn get-orders
   [indegree graph]
-  (let [zero-degree-vertices (get-zero-degree-vertices indegree)
-        updated-indegree (remove-zero-indegree-vertex zero-degree-vertices indegree)
-        init-data {:indegree updated-indegree :visited #{} :q zero-degree-vertices :route []}]
-    (->> init-data
+  (let [init-state (create-init-state indegree)] ;; init-state
+    (->> init-state
          (iterate #(work graph %))
-         (take-while #(not (empty? (% :q))))
-         last)))
+         (drop-while #(not (empty? (% :next-steps))))
+         first
+         :orders)))
 
 (comment (let [instructions (->> "aoc2018/day7.sample.txt"
                                  puzzle-input
@@ -105,10 +109,10 @@
                           (get-graph instructions))
                indegree (->> vertices
                              (reduce #(assoc %1 %2 0) {})
-                             (get-indegree instructions))
-               {:keys [q route]} (get-order indegree graph)]
-           (->> q
-                (concat route)
+                             (get-indegree instructions))]
+           (->> graph
+                (get-orders indegree)
                 (apply str))))
 
-(str/join '("G" "L" "M" "V" "W" "X" "Z" "D" "K" "O" "U" "C" "E" "J" "R" "H" "F" "A" "P" "I" "T" "S" "B" "Q" "N"))
+(def processing-time
+  (zipmap "abcdefghijklmnopqrstuvwxyz" (range 61 87)))
