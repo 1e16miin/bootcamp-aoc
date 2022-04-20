@@ -28,26 +28,34 @@
   (map-indexed (fn [idx item] (conj {:idx idx} item)) instructions))
 
 
-(defn parse-instruction
-  "instruction을 같은 형태로 parsing
-   ex) {:operation nop, :arg 0, :idx 0} => {:idx 0 :arg 0 :moves 1}
-       {:operation acc, :arg 1, :idx 1} => {:idx 1 :arg 1 :moves 1}
-       {:operation jmp, :arg 4, :idx 2} => {:idx 2 :arg 0 :moves 4}
-   "
-  [{:keys [operation arg]}]
-  (case operation
-    "acc" {:arg arg :moves 1} ;; keyword
-    "nop" {:arg 0 :moves 1}
-    "jmp" {:arg 0 :moves arg})) ;; case
+;; (defn parse-instruction
+;;   "instruction을 같은 형태로 parsing
+;;    ex) {:operation nop, :arg 0, :idx 0} => {:idx 0 :arg 0 :moves 1}
+;;        {:operation acc, :arg 1, :idx 1} => {:idx 1 :arg 1 :moves 1}
+;;        {:operation jmp, :arg 4, :idx 2} => {:idx 2 :arg 0 :moves 4}
+;;    "
+;;   [{:keys [operation arg]}]
+;;   (case operation
+;;     "acc" {:arg arg :moves 1} ;; keyword
+;;     "nop" {:arg 0 :moves 1}
+;;     "jmp" {:arg 0 :moves arg})) ;; case
 
-;; defmulti / defmethod
-;; (defmulti parse-instruction
-;;   (fn [{:keys [idx operation arg]}] operation))
-;; ;; (defmulti parse-instruction :operation)
 
-;; (defmethod parse-instruction "acc"
-;;   [{:keys [idx operation arg]}]
-;;   {:idx idx :arg arg :moves 1})
+(defmulti parse-instruction
+  (fn [{:keys [operation]}] operation))
+
+(defmethod parse-instruction "acc"
+  [{:keys [arg]}]
+  {:arg arg :moves 1})
+
+(defmethod parse-instruction "nop"
+  [_]
+  {:arg 0 :moves 1})
+
+(defmethod parse-instruction "jmp"
+  [{:keys [arg]}]
+  {:arg 0 :moves arg})
+
 
 (defn calculate
   [instructions {:keys [acc visited cur-idx]}]
