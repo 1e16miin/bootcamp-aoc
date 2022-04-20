@@ -22,7 +22,7 @@
        (map read-string)
        (zipmap [:id :x :y :width :height])))
 
-(get-coord-by-id {:id 3 :x 5 :y 5 :width 2 :height 2})
+;; (get-coord-by-id {:id 3 :x 5 :y 5 :width 2 :height 2})
 
 (defn get-coord-by-id ;; 맵을 받는 함수 => destructuring 이용
   "시작점으로 부터 범위내의 모든 좌표를 구하는 함수

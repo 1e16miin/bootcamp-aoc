@@ -15,56 +15,53 @@
     {:from from :to to}))
 
 (defn get-graph
-  "{:from A :to C}
-   {:from A :to F} 
-
-   {A [] B [] C [] F []}
-   "
-  [instructions graph]
+  [instructions steps]
   (reduce
    (fn [result {:keys [from to]}]
      (let [adjacency-list-of-from (result from)]
        (assoc result from (conj adjacency-list-of-from to))))
-   graph
+   (reduce #(assoc %1 %2 []) {} steps)
    instructions))
 
-(defn get-indegree
-  [instructions indegree]
+(defn get-prior-work
+  [instructions steps]
   (reduce
    (fn [result {:keys [to]}]
      (update result to inc))
-   indegree
+   (reduce #(assoc %1 %2 0) {} steps)
    instructions))
 
-(defn get-zero-indegree-vertices
-  [indegree]
-  (->> indegree
+(defn get-zero-prior-work-steps
+  [prior-works]
+  (->> prior-works
        (filter #(zero? (val %)))
        (map first)))
 
-(defn get-dec-indegree-vertices
-  [graph vertices]
+(defn get-next-steps
+  [graph steps]
   (reduce
-   (fn [result vertex]
-     (let [adjacency-vertices (graph vertex)]
+   (fn [result step]
+     (let [adjacency-vertices (graph step)]
        (concat result adjacency-vertices)))
    []
-   vertices))
+   steps))
 
-(defn update-indegree
-  [graph indegree vertices]
-  (let [dec-indegree (->> vertices
-                          (get-dec-indegree-vertices graph)
-                          frequencies)]
+(defn update-prior-work
+  [graph prior-work steps]
+  (let [dec-prior-works (->> steps
+                             (get-next-steps graph)
+                             frequencies)]
     (reduce
-     (fn [result [vertex dec-val]]
-       (update result vertex - dec-val))
-     indegree
-     dec-indegree)))
+     (fn [result [step dec-prior-work]]
+       (update result step - dec-prior-work))
+     prior-work
+     dec-prior-works)))
 
-(defn get-pos-indegrees
-  [indegree zero-indegree-vertices]
-  (apply dissoc indegree zero-indegree-vertices))
+
+
+(defn get-pos-prior-work
+  [prior-works zero-prior-work-steps]
+  (apply dissoc prior-works zero-prior-work-steps))
 
 (def take-times
   (zipmap "ABCDEFGHIJKLMNOPQRSTUVWXYZ" (range 61 87)))
@@ -94,39 +91,40 @@
      workable-steps'')))
 
 (defn work
-  [graph {:keys [orders indegree max-workers in-progress time] :as state}]
+  [graph {:keys [orders prior-work max-workers in-progress time] :as state}]
   (let [finished-steps (get-finished-steps in-progress time)
-        updated-indegree (update-indegree graph indegree finished-steps)
-        zero-indegree-vertices (get-zero-indegree-vertices updated-indegree)
-        in-progress' (update-in-progress in-progress zero-indegree-vertices max-workers time finished-steps)
-        indegree' (->> in-progress'
-                       keys
-                       (get-pos-indegrees updated-indegree))]
+        prior-work' (update-prior-work graph prior-work finished-steps)
+        zero-prior-work-steps (get-zero-prior-work-steps prior-work')
+        in-progress' (update-in-progress in-progress zero-prior-work-steps max-workers time finished-steps)
+        prior-work'' (->> in-progress'
+                          keys
+                          (get-pos-prior-work prior-work'))]
     (-> state
         (assoc :orders (concat orders finished-steps))
-        (assoc :indegree indegree')
+        (assoc :prior-work prior-work'')
         (assoc :max-workers max-workers)
         (assoc :in-progress in-progress')
         (update :time inc))))
 
 (defn create-init-state
-  [indegree max-workers]
-  (let [zero-indegree-vertices (get-zero-indegree-vertices indegree)
+  [prior-work max-workers]
+  (let [zero-prior-work-steps (get-zero-prior-work-steps prior-work)
         init-state {}
-        in-progress (update-in-progress {} zero-indegree-vertices max-workers 0 {})
-        indegree' (->> in-progress
-                       keys
-                       (get-pos-indegrees indegree))]
+        in-progress (update-in-progress {} zero-prior-work-steps max-workers 0 {})
+        prior-work' (->> in-progress
+                         keys
+                         (get-pos-prior-work prior-work))]
     (-> init-state
         (assoc :orders [])
-        (assoc :indegree indegree')
+        (assoc :prior-work prior-work')
         (assoc :max-workers max-workers)
         (assoc :in-progress in-progress)
         (assoc :time 0))))
 
 (defn get-orders
-  [graph indegree max-workers]
-  (let [init-state (create-init-state indegree max-workers)] ;; init-state
+
+  [graph prior-work max-workers]
+  (let [init-state (create-init-state prior-work max-workers)] ;; init-state
     (->> init-state
          (iterate #(work graph %))
          (drop-while #(false? (empty? (% :in-progress))))
@@ -140,15 +138,11 @@
                           (sort-by (juxt :from :to)))
         from (map :from instructions)
         to (map :to instructions)
-        vertices (set (concat from to))
-        graph (->> vertices
-                   (reduce #(assoc %1 %2 []) {})
-                   (get-graph instructions))
-        indegree (->> vertices
-                      (reduce #(assoc %1 %2 0) {})
-                      (get-indegree instructions))]
+        steps (set (concat from to))
+        graph (get-graph instructions steps)
+        prior-work (get-prior-work instructions steps)]
     (-> graph
-        (get-orders indegree 1)
+        (get-orders prior-work 1)
         :orders
         str/join))
   ;;part2
@@ -158,14 +152,10 @@
                           (sort-by (juxt :from :to)))
         from (map :from instructions)
         to (map :to instructions)
-        vertices (set (concat from to))
-        graph (->> vertices
-                   (reduce #(assoc %1 %2 []) {})
-                   (get-graph instructions))
-        indegree (->> vertices
-                      (reduce #(assoc %1 %2 0) {})
-                      (get-indegree instructions))]
+        steps (set (concat from to))
+        graph (get-graph instructions steps)
+        prior-work (get-prior-work instructions steps)]
     (-> graph
-        (get-orders indegree 5)
+        (get-orders prior-work 5)
         :time
         dec)))
