@@ -42,23 +42,44 @@
        (filter #(zero? (val %)))
        (map first)))
 
-(defn update-indegree
+(defn get-dec-indegree-vertices
+  [graph vertices]
+  (reduce
+   (fn [result vertex]
+     (let [adjacency-vertices (graph vertex)]
+       (concat result adjacency-vertices)))
+   []
+   vertices))
 
-  [graph indegree vertex]
-  (let [adjacency-vertices (graph vertex)]
+(defn update-indegree
+  [graph indegree vertices]
+  (let [dec-indegree (->> vertices
+                          (get-dec-indegree-vertices graph)
+                          frequencies)]
     (reduce
-     (fn [result adjacency-vertex]
-       (update result adjacency-vertex dec))
+     (fn [result [vertex dec-val]]
+       (update result vertex - dec-val))
      indegree
-     adjacency-vertices)))
+     dec-indegree)))
 
 (defn get-pos-indegrees
   [zero-indegree-vertices indegree]
   (apply dissoc indegree zero-indegree-vertices))
 
+
+
+(def take-times
+  (zipmap "ABCDEFGHIJKLMNOPQRSTUVWXYZ" (range 61 87)))
+
+(defn get-finished-steps
+  [in-progress time]
+  (->> in-progress
+       (filter #(= (:end %) time))
+       (map key)
+       set))
+
 (defn update-next-steps
   ""
-
   [graph next-steps visited zero-indegree-vertices]
   (let [next-steps' (rest next-steps)]
     (->> zero-indegree-vertices
@@ -66,34 +87,58 @@
          (concat next-steps')
          sort)))
 
+(defn update-in-progress
+  [in-progress workable-steps max-workers time finished-steps]
+  (let [in-progress' (->> in-progress
+                          (filter #(nil? (finished-steps %)))
+                          (into {}))
+        workable-steps' (sort workable-steps)
+        workers (count in-progress')
+
+        workable-steps'' (take (- max-workers workers) workable-steps')]
+    (reduce
+     (fn [result step]
+       (let [take-time (take-times (first step))]
+         (assoc result step {:start time
+                             :end (+ time take-time)})))
+     in-progress'
+     workable-steps'')))
+;; (first "c")
 (defn work
-  [graph {:keys [visited next-steps orders indegree] :as state}]
-  (let [step (first next-steps)
-        updated-indegree (update-indegree graph indegree step)
-        zero-degree-vertices (get-zero-indegree-vertices updated-indegree)]
+  [graph {:keys [visited next-steps orders indegree max-workers in-progress time] :as state}]
+  (let [finished-steps (get-finished-steps in-progress time)
+        updated-indegree (update-indegree graph indegree finished-steps)
+        zero-indegree-vertices (get-zero-indegree-vertices updated-indegree)]
     (-> state
-        (assoc :visited (conj visited step))
-        (assoc :next-steps (update-next-steps graph next-steps visited zero-degree-vertices))
-        (assoc :orders (conj orders step))
-        (assoc :indegree (get-pos-indegrees zero-degree-vertices updated-indegree)))))
+        ;; (assoc :visited (conj visited finished-steps))
+        ;; (assoc :next-steps (update-next-steps graph next-steps visited zero-degree-vertices))
+        (assoc :orders (concat orders finished-steps))
+        (assoc :indegree (get-pos-indegrees zero-indegree-vertices updated-indegree))
+        (assoc :max-workers max-workers)
+        (assoc :in-progress (update-in-progress in-progress zero-indegree-vertices max-workers time finished-steps))
+        (update :time inc))))
 
 (defn create-init-state
-  [indegree]
+  [indegree max-workers]
   (let [zero-indegree-vertices (get-zero-indegree-vertices indegree)
         pos-indegrees (get-pos-indegrees zero-indegree-vertices indegree)
-        init-state {}]
+        init-state {}
+        in-progress (update-in-progress {} zero-indegree-vertices max-workers 0 {})]
     (-> init-state
-        (assoc :visited #{})
-        (assoc :next-steps zero-indegree-vertices)
+        ;; (assoc :visited #{})
+        ;; (assoc :next-steps zero-indegree-vertices)
         (assoc :orders [])
-        (assoc :indegree pos-indegrees))))
+        (assoc :indegree pos-indegrees)
+        (assoc :max-workers max-workers)
+        (assoc :in-progress in-progress)
+        (assoc :time 0))))
 
 (defn get-orders
-  [indegree graph]
-  (let [init-state (create-init-state indegree)] ;; init-state
+  [indegree max-workers graph]
+  (let [init-state (create-init-state indegree max-workers)] ;; init-state
     (->> init-state
          (iterate #(work graph %))
-         (drop-while #(not (empty? (% :next-steps))))
+         (drop-while #(not (empty? (% :in-progress))))
          first
          :orders)))
 
@@ -111,8 +156,10 @@
                              (reduce #(assoc %1 %2 0) {})
                              (get-indegree instructions))]
            (->> graph
-                (get-orders indegree)
+                (get-orders indegree 1)
                 (apply str))))
 
-(def processing-time
-  (zipmap "abcdefghijklmnopqrstuvwxyz" (range 61 87)))
+
+;; (take-times \a)
+
+;; (first "a")
