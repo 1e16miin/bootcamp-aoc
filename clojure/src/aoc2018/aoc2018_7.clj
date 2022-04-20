@@ -63,10 +63,8 @@
      dec-indegree)))
 
 (defn get-pos-indegrees
-  [zero-indegree-vertices indegree]
+  [indegree zero-indegree-vertices]
   (apply dissoc indegree zero-indegree-vertices))
-
-
 
 (def take-times
   (zipmap "ABCDEFGHIJKLMNOPQRSTUVWXYZ" (range 61 87)))
@@ -74,27 +72,18 @@
 (defn get-finished-steps
   [in-progress time]
   (->> in-progress
-       (filter #(= (:end %) time))
+       (filter #(= (:end (val %)) time))
        (map key)
        set))
 
-(defn update-next-steps
-  ""
-  [graph next-steps visited zero-indegree-vertices]
-  (let [next-steps' (rest next-steps)]
-    (->> zero-indegree-vertices
-         (filter #(nil? (visited %)))
-         (concat next-steps')
-         sort)))
 
 (defn update-in-progress
   [in-progress workable-steps max-workers time finished-steps]
   (let [in-progress' (->> in-progress
-                          (filter #(nil? (finished-steps %)))
+                          (filter #(nil? (finished-steps (key %))))
                           (into {}))
         workable-steps' (sort workable-steps)
         workers (count in-progress')
-
         workable-steps'' (take (- max-workers workers) workable-steps')]
     (reduce
      (fn [result step]
@@ -103,63 +92,80 @@
                              :end (+ time take-time)})))
      in-progress'
      workable-steps'')))
-;; (first "c")
+
 (defn work
-  [graph {:keys [visited next-steps orders indegree max-workers in-progress time] :as state}]
+  [graph {:keys [orders indegree max-workers in-progress time] :as state}]
   (let [finished-steps (get-finished-steps in-progress time)
         updated-indegree (update-indegree graph indegree finished-steps)
-        zero-indegree-vertices (get-zero-indegree-vertices updated-indegree)]
+        zero-indegree-vertices (get-zero-indegree-vertices updated-indegree)
+        in-progress' (update-in-progress in-progress zero-indegree-vertices max-workers time finished-steps)
+        indegree' (->> in-progress'
+                       keys
+                       (get-pos-indegrees updated-indegree))]
     (-> state
-        ;; (assoc :visited (conj visited finished-steps))
-        ;; (assoc :next-steps (update-next-steps graph next-steps visited zero-degree-vertices))
         (assoc :orders (concat orders finished-steps))
-        (assoc :indegree (get-pos-indegrees zero-indegree-vertices updated-indegree))
+        (assoc :indegree indegree')
         (assoc :max-workers max-workers)
-        (assoc :in-progress (update-in-progress in-progress zero-indegree-vertices max-workers time finished-steps))
+        (assoc :in-progress in-progress')
         (update :time inc))))
 
 (defn create-init-state
   [indegree max-workers]
   (let [zero-indegree-vertices (get-zero-indegree-vertices indegree)
-        pos-indegrees (get-pos-indegrees zero-indegree-vertices indegree)
         init-state {}
-        in-progress (update-in-progress {} zero-indegree-vertices max-workers 0 {})]
+        in-progress (update-in-progress {} zero-indegree-vertices max-workers 0 {})
+        indegree' (->> in-progress
+                       keys
+                       (get-pos-indegrees indegree))]
     (-> init-state
-        ;; (assoc :visited #{})
-        ;; (assoc :next-steps zero-indegree-vertices)
         (assoc :orders [])
-        (assoc :indegree pos-indegrees)
+        (assoc :indegree indegree')
         (assoc :max-workers max-workers)
         (assoc :in-progress in-progress)
         (assoc :time 0))))
 
 (defn get-orders
-  [indegree max-workers graph]
+  [graph indegree max-workers]
   (let [init-state (create-init-state indegree max-workers)] ;; init-state
     (->> init-state
          (iterate #(work graph %))
-         (drop-while #(not (empty? (% :in-progress))))
-         first
-         :orders)))
+         (drop-while #(false? (empty? (% :in-progress))))
+         first)))
 
-(comment (let [instructions (->> "aoc2018/day7.sample.txt"
-                                 puzzle-input
-                                 (map input->instruction)
-                                 (sort-by (juxt :from :to)))
-               from (map :from instructions)
-               to (map :to instructions)
-               vertices (set (concat from to))
-               graph (->> vertices
-                          (reduce #(assoc %1 %2 []) {})
-                          (get-graph instructions))
-               indegree (->> vertices
-                             (reduce #(assoc %1 %2 0) {})
-                             (get-indegree instructions))]
-           (->> graph
-                (get-orders indegree 1)
-                (apply str))))
-
-
-;; (take-times \a)
-
-;; (first "a")
+(comment
+  ;;part1
+  (let [instructions (->> "aoc2018/day7.sample.txt"
+                          puzzle-input
+                          (map input->instruction)
+                          (sort-by (juxt :from :to)))
+        from (map :from instructions)
+        to (map :to instructions)
+        vertices (set (concat from to))
+        graph (->> vertices
+                   (reduce #(assoc %1 %2 []) {})
+                   (get-graph instructions))
+        indegree (->> vertices
+                      (reduce #(assoc %1 %2 0) {})
+                      (get-indegree instructions))]
+    (-> graph
+        (get-orders indegree 1)
+        :orders
+        str/join))
+  ;;part2
+  (let [instructions (->> "aoc2018/day7.sample.txt"
+                          puzzle-input
+                          (map input->instruction)
+                          (sort-by (juxt :from :to)))
+        from (map :from instructions)
+        to (map :to instructions)
+        vertices (set (concat from to))
+        graph (->> vertices
+                   (reduce #(assoc %1 %2 []) {})
+                   (get-graph instructions))
+        indegree (->> vertices
+                      (reduce #(assoc %1 %2 0) {})
+                      (get-indegree instructions))]
+    (-> graph
+        (get-orders indegree 5)
+        :time
+        dec)))
