@@ -43,7 +43,7 @@
   (let [init-graph (reduce #(assoc %1 %2 []) {} steps)]
     (reduce
      (fn [graph {:keys [from to]}]
-       (update-in graph [from] conj to))
+       (update-in graph [from] conj to)) ;; update-in은 nested한 맵에서 사용!
      init-graph
      instructions)))
 
