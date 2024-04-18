@@ -1,4 +1,4 @@
-(ns aoc2020_4
+(ns aoc2020-4
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.set :as set]
