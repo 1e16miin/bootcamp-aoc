@@ -38,5 +38,25 @@
          (mapcat :metadata)
          (reduce +))))
 
+(defn calculate-value
+  [{:keys [children metadata]}]
+  (if-not children
+    (apply + metadata)
+    (reduce (fn [acc idx]
+              (let [node (get children (dec idx))
+                    value (calculate-value node)]
+                (+ acc value))) 
+            0
+            metadata)))
+
+(defn solve-part2
+  [filename]
+  (let [tree (-> filename
+                 puzzle-input
+                 create-tree
+                 first)]
+    (calculate-value tree)))
+
 (comment 
-  (solve-part1 "aoc2018/day8.sample.txt"))
+  (solve-part1 "aoc2018/day8.sample.txt")
+  (solve-part2 "aoc2018/day8.sample.txt"))
